@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Cassette with a clock hand">
+  <rect width="512" height="512" rx="72" fill="#D94B25"/>
+  <rect x="64" y="104" width="384" height="280" rx="18" fill="#F3EBD8" stroke="#171611" stroke-width="18"/>
+  <rect x="104" y="144" width="304" height="142" rx="10" fill="#9CC9B7" stroke="#171611" stroke-width="14"/>
+  <circle cx="168" cy="215" r="45" fill="#F3EBD8" stroke="#171611" stroke-width="14"/>
+  <circle cx="344" cy="215" r="45" fill="#F3EBD8" stroke="#171611" stroke-width="14"/>
+  <path d="M168 215h176M256 215v-48" stroke="#171611" stroke-width="14" stroke-linecap="round"/>
+  <path d="M130 326h252l26 58H104z" fill="#E8DF51" stroke="#171611" stroke-width="14"/>
+</svg>

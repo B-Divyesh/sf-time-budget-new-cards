@@ -1,0 +1,12 @@
+{
+  "slug": "time-budget-new-cards",
+  "title": "Time Budget New Cards",
+  "territory": "utilities",
+  "user": "An Anki or CSV-flashcard learner who needs to choose how many new items to introduce within a fixed daily study budget despite mixed difficulty.",
+  "smallest_useful_product": "An offline companion that ingests review duration/history or a CSV, estimates the marginal time cost of new cards, and recommends today’s safe new-card cap.",
+  "success_measure": "At least 60% of pilot users remain within ±20% of their chosen study budget for 21 of 30 days while continuing to add new material.",
+  "artifact_class": "pwa-offline",
+  "monetization": "free",
+  "constraints": "Do not claim clinical learning optimization; estimates must disclose uncertainty and support manual correction; no account is required.",
+  "state": "BUILT"
+}
