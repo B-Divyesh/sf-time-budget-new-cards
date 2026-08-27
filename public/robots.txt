@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://time-budget-new-cards.sociobot.in/sitemap.xml
