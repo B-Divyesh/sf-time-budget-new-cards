@@ -1,17 +1,16 @@
 # Handoff: Time Budget New Cards
 
-## What shipped
+## Verification status: **FAIL**
 
-- A complete responsive planner for turning a daily minute budget, due-review count, average review speed, and new-material difficulty into a cautious new-card cap.
-- Transparent output: expected session time, likely range, confidence stage, marginal seconds per new card, uncertainty, and the reason for a zero-card recommendation.
-- Personal calibration from logged sessions, optional manual pace correction, deletion with confirmation, and up to 30 visible recent sessions.
-- CSV import for Study Tape sessions and Anki-style row history; CSV export, full JSON backup/restore, and validated imports.
-- IndexedDB persistence with no account or network data submission.
-- Installable offline PWA with versioned shell/runtime caches, offline fallback, connection state, and a user-controlled update toast.
-- Dedicated privacy and terms pages.
-- Original cassette-era zine visual system, generated hero illustration, and authored cassette icons. Provenance and the full prompt are in `.factory/design.md` and `assets/src/study-tape.prompt.json`.
+Independent verification on **2026-08-28 UTC** tested candidate **`2fb802c241b22c97d2980029ab317f566fdb58d0`** and its deployed artifact at <https://time-budget-new-cards.sociobot.in/>. The complete report is [`.factory/verification.md`](verification.md).
 
-## How to run and verify
+The deployment byte-for-byte matches the candidate and the calculator, import/export, persistence, responsive UI, normal accessibility checks, and performance budgets pass. This is nevertheless not releasable as a `pwa-offline` product:
+
+- **P1 release blocker:** after the service worker has installed, clearing normal browser HTTP cache, going offline, and reloading returns cached HTML without the JS/CSS app shell. The page has no planner or `<h1>` and reports failed resource loads. The SW precache omits emitted `/assets/*.js` and `/assets/*.css`.
+- **P2:** deployed content-addressed assets use `Cache-Control: public, must-revalidate, max-age=30`, not immutable long-lived caching.
+- **P3:** production lacks CSP, clickjacking protection, and Permissions-Policy response headers.
+
+## How to run and retest
 
 ```bash
 npm ci
@@ -21,21 +20,10 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
-Deployment output is exactly `dist/`; `dist/index.html` is present at its root.
+The deployment artifact is `dist/`. Before release, fix the P1 app-shell precache and retest in a fresh browser profile after clearing only the HTTP cache while retaining the service worker/Cache Storage; offline reload must render the full planner without failed JS/CSS requests. Also version SW caches per build and configure immutable cache headers for hashed assets.
 
-Verification performed on 2026-08-27:
+## Product notes
 
-- `npm test`: 9/9 unit tests pass.
-- `npm run build`: pass; production JS 26.88 KB raw / 9.77 KB gzip, CSS 13.79 KB raw / 3.95 KB gzip.
-- `npm run test:e2e`: 8/8 Chromium tests pass across desktop and Pixel 5 profiles.
-- Offline test: after an online install/load, Playwright switches the browser context offline, reloads, finds the full planner, and confirms the offline state.
-- axe-core through Playwright: no serious or critical violations on desktop or mobile.
-- Lighthouse mobile: Performance 100, Accessibility 100, Best Practices 100, SEO 100. FCP 1.0 s, LCP 1.8 s, TBT 60 ms, CLS 0.
-- Visual review: full-page 1440px and Pixel 5 captures checked for clipping, hierarchy, responsive stacking, and hero artifacts.
-- Hero payload: AVIF 45 KB, WebP 80 KB, PNG fallback 245 KB; all stay below the 300 KB hero limit.
-
-## Known gaps / next steps
-
-- The recommendation is an intentionally conservative heuristic, not a validated learning model. Pilot data is still needed to measure the brief’s 30-day ±20% success target and tune defaults.
-- Anki exports vary by add-on and locale. The importer covers documented session CSV plus common `id/date`, `time/duration_*`, and `type/is_new` columns; unsupported exports receive a corrective error and can be reshaped with the downloadable template.
-- No cross-device sync is included by design. Users move data with JSON backups or CSV exports.
+- This remains a deliberately cautious time-planning heuristic, not a validated learning model. Pilot data is needed to measure the brief’s 30-day ±20% outcome.
+- Anki export formats vary; the app currently supports its session CSV and the documented common row-level fields, with corrective errors for unsupported formats.
+- No cross-device sync is included by design; users move data through CSV or JSON export.
