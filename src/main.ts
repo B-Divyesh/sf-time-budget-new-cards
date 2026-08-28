@@ -376,6 +376,10 @@ function monitorConnection(): void {
   };
   addEventListener('online', () => update(true));
   addEventListener('offline', () => update(false));
+  if (!navigator.onLine) {
+    update(false);
+    return;
+  }
   fetch(`/online-check.txt?${Date.now()}`, { cache: 'no-store' })
     .then((response) => update(response.ok))
     .catch(() => update(false));
