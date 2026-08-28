@@ -381,7 +381,7 @@ function monitorConnection(): void {
     return;
   }
   fetch(`/online-check.txt?${Date.now()}`, { cache: 'no-store' })
-    .then((response) => update(response.ok))
+    .then((response) => update(response.ok && response.headers.get('X-Study-Tape-Offline') !== '1'))
     .catch(() => update(false));
 }
 

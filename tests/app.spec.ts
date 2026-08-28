@@ -33,14 +33,17 @@ test('first installed shell reload is complete offline with only Cache Storage a
   await cdp.send('Network.enable');
   await cdp.send('Network.clearBrowserCache');
   const failedShellAssets: string[] = [];
+  const consoleErrors: string[] = [];
   page.on('requestfailed', (request) => {
     if (/\/assets\/.*\.(?:js|css)$/.test(new URL(request.url()).pathname)) failedShellAssets.push(request.url());
   });
+  page.on('console', (message) => { if (message.type() === 'error') consoleErrors.push(message.text()); });
   await context.setOffline(true);
   await page.reload();
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(/Make new cards fit/);
   await expect(page.getByText(/Offline — still working/)).toBeVisible();
   expect(failedShellAssets).toEqual([]);
+  expect(consoleErrors).toEqual([]);
 });
 
 test('legal pages have a single main heading', async ({ page }) => {
