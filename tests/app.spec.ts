@@ -1,5 +1,8 @@
 import { expect, test } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
+import { createServer } from 'node:http';
+import { readFile } from 'node:fs/promises';
+import { extname, join } from 'node:path';
 
 test('calculates, logs, and restores a real session', async ({ page }) => {
   await page.goto('/');
@@ -214,6 +217,52 @@ test('reduced motion removes transitions and editorial transforms', async ({ bro
   expect(Number.parseFloat(style.transition)).toBeLessThanOrEqual(0.00001);
   expect(style.transform).toBe('none');
   await context.close();
+});
+
+test('shows an available app update and activates it on request', async ({ browser }) => {
+  let serveUpdatedWorker = false;
+  const contentTypes: Record<string, string> = {
+    '.avif': 'image/avif', '.css': 'text/css', '.html': 'text/html', '.js': 'text/javascript',
+    '.json': 'application/json', '.png': 'image/png', '.svg': 'image/svg+xml', '.webp': 'image/webp',
+    '.webmanifest': 'application/manifest+json',
+  };
+  const server = createServer(async (request, response) => {
+    const pathname = new URL(request.url || '/', 'http://127.0.0.1').pathname;
+    const filePath = pathname === '/' ? '/index.html' : pathname.endsWith('/') ? `${pathname}index.html` : pathname;
+    try {
+      let body = await readFile(join(process.cwd(), 'dist', filePath));
+      if (filePath === '/sw.js' && serveUpdatedWorker) body = Buffer.concat([body, Buffer.from('\n// update test revision\n')]);
+      response.writeHead(200, {
+        'Cache-Control': filePath === '/sw.js' ? 'no-cache' : 'public, max-age=0',
+        'Content-Type': contentTypes[extname(filePath)] || 'application/octet-stream',
+      });
+      response.end(body);
+    } catch {
+      response.writeHead(404, { 'Content-Type': 'text/plain' });
+      response.end('Not found');
+    }
+  });
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const address = server.address();
+  if (!address || typeof address === 'string') throw new Error('Update test server did not start.');
+  const context = await browser.newContext({ baseURL: `http://127.0.0.1:${address.port}` });
+  try {
+    const page = await context.newPage();
+    await page.goto('/');
+    await page.waitForFunction(() => navigator.serviceWorker?.controller !== null);
+    serveUpdatedWorker = true;
+    await page.evaluate(async () => (await navigator.serviceWorker.getRegistration())?.update());
+    await expect(page.getByText('An app update is ready.')).toBeVisible({ timeout: 15_000 });
+    await Promise.all([
+      page.waitForEvent('load'),
+      page.getByRole('button', { name: 'Update app' }).click(),
+    ]);
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Choose how many new cards fit today');
+    await expect(page.getByText('An app update is ready.')).toBeHidden();
+  } finally {
+    await context.close();
+    await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
 });
 
 test('main routes have no serious accessibility violations or console errors', async ({ page }) => {
