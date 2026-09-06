@@ -1,5 +1,17 @@
 # Handoff: Choose how many new cards fit today
 
+## Independent verification 3
+
+**PASS — zero findings and zero untested claims.** Independent QA on 2026-09-06 reviewed implementation `4083790fa39fa6d025e8a6b3a2c6ffe44da01159`; verification-test revision is `de7af71` and documentation revision is `7a9e7fac467b6d3ae5cd844a780247002bcfc3e6`.
+
+- A separate clean checkout passed `npm ci`, `npm test` (13/13), `npm run build`, every declared claim command (19/19), and `npm run test:e2e` (66/66).
+- Fresh live desktop and Pixel 5 checks passed. The first screen states the job, audience, and one-click sample action. The demo showed its persistent sample label, three realistic sessions, a six-card output, reset behavior, and isolation from real data.
+- Normal, invalid, boundary, and recovery paths passed. So did keyboard/focus, mobile reflow, reduced motion, privacy/no-third-party requests, legal routes, link crawl, intentional 404, cold offline reload, service-worker update behavior, and local-data erase.
+- The live artifact matched all 28 served build files by SHA-256. `staticwebapp.config.json` is the one deployment-only build file and is correctly not served.
+- Live Playwright axe found 0 violations. `verify-url.sh` passed. Lighthouse could not be re-run in this container because its Chromium process crashed at startup; normal live Playwright Chromium checks worked and the documented prior live result is 100/100/100/100.
+
+See [verification-3.md](verification-3.md) for detailed evidence. The remaining product limits below are documented scope limits, not verification findings.
+
 ## Status
 
 **Repair complete and deployed.** All nine findings in `review-1.md` are resolved. All 19 retained public claims have a declared, uniquely tagged outcome test and pass from a clean checkout.
