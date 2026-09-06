@@ -1,5 +1,18 @@
 # Handoff: Choose how many new cards fit today
 
+## Strict review 2
+
+**PASS — zero findings of every severity and zero untested public claims.** Strict review 2 on 2026-09-06 reviewed implementation `4083790fa39fa6d025e8a6b3a2c6ffe44da01159`, verification-test revision `de7af710615d571e84cfd41f0ca97bd38219c224`, and documentation baseline `c7f844ab7b38af0c4430fed360748b4d8e2fbfa5`.
+
+- A separate remote clone passed `npm ci`, `npm test` (13/13), `npm run build`, all 19 declared claim commands individually, and `npm run test:e2e` (66/66).
+- Fresh live desktop and 393×727 phone contexts showed the job, audience, first action, and three facts before scrolling. The one-click sample loaded three sessions and a six-card result.
+- Live demo reset and isolation passed against a separately created 41-minute real plan and real session. Invalid, boundary, recovery, keyboard, focus, reduced-motion, privacy, route, legal, link, intentional 404, and cold-offline paths passed.
+- Fresh axe checks found 0 violations on home, demo, privacy, terms, and the not-found page. The standard URL verifier passed with no normal-load console errors.
+- All 28 served build files matched live byte-for-byte. The only unserved build file is deployment-only `staticwebapp.config.json`.
+- A fresh Lighthouse attempt gathered 100/100/100/100 and FCP 0.9 s, LCP 1.0 s, TBT 0 ms, CLS 0, then exited with a Chromium `TARGET_CRASHED` error during its final full-page screenshot. This incomplete command is recorded without concealing the runner failure; other fresh live checks completed.
+
+See [review-2.md](review-2.md) for the strict review and `/work/.evidence/time-budget-new-cards-review-2/` for its captures and machine output. The product code was not modified.
+
 ## Independent verification 3
 
 **PASS — zero findings and zero untested claims.** Independent QA on 2026-09-06 reviewed implementation `4083790fa39fa6d025e8a6b3a2c6ffe44da01159`; verification-test revision is `de7af71` and documentation revision is `7a9e7fac467b6d3ae5cd844a780247002bcfc3e6`.
