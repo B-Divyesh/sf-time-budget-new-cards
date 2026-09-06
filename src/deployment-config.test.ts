@@ -6,6 +6,8 @@ const configPath = fileURLToPath(new URL('../public/staticwebapp.config.json', i
 const config = JSON.parse(readFileSync(configPath, 'utf8')) as {
   globalHeaders: Record<string, string>;
   routes: Array<{ route: string; headers: Record<string, string> }>;
+  responseOverrides: Record<string, { rewrite: string }>;
+  mimeTypes: Record<string, string>;
 };
 
 describe('static deployment policy', () => {
@@ -21,5 +23,12 @@ describe('static deployment policy', () => {
     expect(config.globalHeaders['Content-Security-Policy']).toContain("script-src 'self'");
     expect(config.globalHeaders['X-Frame-Options']).toBe('DENY');
     expect(config.globalHeaders['Permissions-Policy']).toContain('camera=()');
+  });
+
+  it('serves a designed 404 and the manifest with its standard MIME type', () => {
+    expect(config.responseOverrides['404']?.rewrite).toBe('/404.html');
+    expect(config.mimeTypes['.webmanifest']).toBe('application/manifest+json');
+    expect(config.routes.find((route) => route.route === '/manifest.webmanifest')?.headers['Content-Type'])
+      .toContain('application/manifest+json');
   });
 });

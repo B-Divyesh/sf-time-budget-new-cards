@@ -1,9 +1,9 @@
 {
   "id": "/",
   "name": "Time Budget New Cards",
-  "short_name": "Study Tape",
-  "description": "A local-first time budget for new flashcards.",
-  "start_url": "/?source=installed-v1",
+  "short_name": "Time Budget",
+  "description": "Choose a daily new-card limit from your study time and session history.",
+  "start_url": "/?source=installed-v2",
   "scope": "/",
   "display": "standalone",
   "background_color": "#F3EBD8",

@@ -1,7 +1,7 @@
 import './styles.css';
 import { estimate } from './calculator';
 import { exportSessions, importSessions } from './csv';
-import { loadState, saveState } from './storage';
+import { deleteState, loadState, saveState } from './storage';
 import type { Difficulty, PlannerState, StudySession } from './types';
 
 const appRoot = document.querySelector<HTMLDivElement>('#app');
@@ -15,27 +15,78 @@ const defaultState: PlannerState = {
   sessions: [],
 };
 
-let state: PlannerState = structuredClone(defaultState);
+const sampleState: PlannerState = {
+  version: 1,
+  updatedAt: Date.now(),
+  settings: { budgetMinutes: 25, dueReviews: 55, reviewSeconds: 10, difficulty: 'mixed', newCardSeconds: null },
+  sessions: [
+    { id: 'sample-2026-09-05', date: '2026-09-05', totalMinutes: 23, reviewedCards: 50, newCards: 8, difficulty: 'easy', createdAt: Date.UTC(2026, 8, 5, 12) },
+    { id: 'sample-2026-09-03', date: '2026-09-03', totalMinutes: 26, reviewedCards: 60, newCards: 6, difficulty: 'hard', createdAt: Date.UTC(2026, 8, 3, 12) },
+    { id: 'sample-2026-09-02', date: '2026-09-02', totalMinutes: 24, reviewedCards: 55, newCards: 7, difficulty: 'mixed', createdAt: Date.UTC(2026, 8, 2, 12) },
+  ],
+};
+
+const normalizedPath = location.pathname.replace(/\/$/, '');
+const isDemo = normalizedPath === '/demo' || normalizedPath === '/demo/index.html';
+let state: PlannerState = structuredClone(isDemo ? sampleState : defaultState);
 let saveTimer = 0;
 let refreshForUpdate = false;
 
 function connectionLabel(): string {
-  return !navigator.onLine || sessionStorage.getItem('study-tape-offline') === 'true'
+  return !navigator.onLine || sessionStorage.getItem('time-budget-offline') === 'true'
     ? 'Offline — still working'
-    : 'Ready offline';
+    : 'Online';
 }
 
 function today(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+function siteHeader(showConnection = false): string {
+  return `
+    <header class="site-header">
+      <a class="brand" href="/" aria-label="Time Budget New Cards home"><span class="brand-mark" aria-hidden="true">● ◼ ●</span><span>Time Budget Cards</span></a>
+      <nav aria-label="Main navigation"><a href="/#planner">Planner</a><a href="/demo/">Demo</a><a href="/privacy/">Privacy</a></nav>
+      ${showConnection ? `<span class="connection" id="connection" role="status" aria-live="polite"><span aria-hidden="true">●</span> <span>${connectionLabel()}</span></span>` : '<span aria-hidden="true"></span>'}
+    </header>`;
+}
+
+function siteFooter(): string {
+  return `
+    <footer class="site-footer">
+      <div><strong>Time Budget New Cards</strong><p>Choose a new-card limit from your study time and session history.</p></div>
+      <nav aria-label="Footer navigation"><a href="/privacy/">Privacy</a><a href="/terms/">Terms</a><a href="https://github.com/B-Divyesh/sf-time-budget-new-cards" target="_blank" rel="noopener">Source code (opens GitHub)</a></nav>
+      <p class="footer-meta">Built by Param Factory · Version 1.1.0</p>
+      <p class="generated-note">The study desk artwork was generated for this product with Azure AI.</p>
+    </footer>`;
+}
+
+function demoBanner(): string {
+  if (!isDemo) return '';
+  return `
+    <aside class="demo-banner" aria-label="Demo status">
+      <strong>Demo — sample data, nothing is saved</strong>
+      <span>Changes stay in this tab and never touch your real planner.</span>
+      <div><button class="button small" id="reset-demo" type="button">Reset demo</button><a class="button small" href="/">Start for real</a></div>
+    </aside>`;
+}
+
+async function persistState(): Promise<void> {
+  if (isDemo) return;
+  await saveState(state);
+}
+
 function queueSave(): void {
   window.clearTimeout(saveTimer);
   state.updatedAt = Date.now();
+  if (isDemo) {
+    setMessage('Demo change applied for this tab. Nothing was saved.', 'quiet');
+    return;
+  }
   saveTimer = window.setTimeout(async () => {
     try {
-      await saveState(state);
-      setMessage('Saved on this device.', 'quiet');
+      await persistState();
+      setMessage('Saved in this browser.', 'quiet');
     } catch {
       setMessage('Could not save locally. Export a backup before closing.', 'error');
     }
@@ -60,28 +111,41 @@ function legalPage(kind: 'privacy' | 'terms'): void {
   const privacy = kind === 'privacy';
   document.title = `${privacy ? 'Privacy' : 'Terms'} — Time Budget New Cards`;
   root.innerHTML = `
-    <header class="site-header compact"><a class="brand" href="/" aria-label="Time Budget New Cards home"><span class="brand-mark" aria-hidden="true">● ◼ ●</span><span>Study Tape</span></a></header>
+    ${siteHeader()}
     <main id="main" class="legal-shell">
-      <p class="kicker">The fine print / plain language</p>
-      <h1>${privacy ? 'Your study data stays yours.' : 'A small tool, with small terms.'}</h1>
+      <h1 tabindex="-1">${privacy ? 'How your study data is handled' : 'Terms for using this planner'}</h1>
       ${privacy ? `
-        <p><strong>Effective 27 August 2026.</strong> Time Budget New Cards works without an account. Your settings, study history, and imports are stored only in this browser using IndexedDB.</p>
-        <h2>What leaves your device</h2><p>Nothing you enter is transmitted by the app. There are no analytics, ads, tracking pixels, third-party scripts, or remote fonts. Hosting infrastructure may keep short-lived security logs such as IP address and request time.</p>
-        <h2>Your controls</h2><p>Export CSV or JSON from the planner at any time. “Erase local data” removes the app database from this browser. Removing the app or clearing browser storage can also delete it.</p>
-        <h2>Offline cache</h2><p>The service worker caches app files so the planner works offline. It does not cache your study records; those remain in IndexedDB.</p>
+        <p><strong>Effective 6 September 2026.</strong> Time Budget New Cards works without an account.</p>
+        <h2>Data stored in your browser</h2><p>Your settings, study history, and imports stay in IndexedDB in this browser. The app does not send entered data anywhere.</p>
+        <h2>Site requests and hosting logs</h2><p>The app uses no analytics, ads, tracking pixels, third-party scripts, or remote fonts. It only requests files from this product site.</p><p>The browser app keeps no request log. Static hosting controls any security-log retention. Email <a href="mailto:privacy@sociobot.in">privacy@sociobot.in</a> to ask about current retention or request access or deletion.</p>
+        <h2>Your controls</h2><p>Export CSV or JSON from the planner at any time. “Erase local data” deletes your settings and study history from this browser.</p>
+        <h2>Offline files</h2><p>The service worker stores app files for offline use. Your study records remain separate in IndexedDB.</p>
       ` : `
-        <p><strong>Effective 27 August 2026.</strong> This free tool estimates a reasonable new-card cap from the information you provide. It is offered as-is, without warranties.</p>
-        <h2>Not learning or medical advice</h2><p>The recommendation is a planning estimate, not a promise of learning outcomes. Difficulty and interruptions vary. Check the shown range, correct your inputs, and use your own judgment.</p>
-        <h2>Your data</h2><p>You keep ownership of imported and recorded data. The app stores it locally and does not require an account.</p>
-        <h2>Acceptable use</h2><p>Use the tool lawfully. Do not attempt to disrupt the hosted service. The app is MIT-licensed; the license governs reuse of its source code.</p>
+        <p><strong>Effective 6 September 2026.</strong> This free tool estimates a new-card limit from the information you provide. It is offered as-is, without warranties.</p>
+        <h2>Planning estimate</h2><p>The recommendation is not a promise of learning outcomes. Difficulty and interruptions vary.</p><p>Check the shown range, correct your inputs, and use your own judgment.</p>
+        <h2>Your data</h2><p>You own imported and recorded data. The app stores it in your browser and requires no account.</p>
+        <h2>Acceptable use</h2><p>Use the tool lawfully. Do not disrupt the hosted service.</p><p>The app is MIT-licensed. The license governs reuse of its source code.</p>
       `}
-      <p><a class="text-link" href="/">← Return to the planner</a></p>
+      <p><a class="text-link" href="/">Return to the planner</a></p>
     </main>
-    <footer class="site-footer"><p>Questions? This product is maintained by the Param Factory.</p></footer>`;
+    ${siteFooter()}`;
+}
+
+function notFoundPage(): void {
+  document.title = 'Page not found — Time Budget New Cards';
+  root.innerHTML = `
+    ${siteHeader()}
+    <main id="main" class="not-found-shell">
+      <p class="error-code">404</p>
+      <h1 tabindex="-1">This page was not found</h1>
+      <p>The address may be wrong, or the page may have moved.</p>
+      <a class="button primary" href="/">Open the planner</a>
+    </main>
+    ${siteFooter()}`;
 }
 
 function difficultyOptions(selected: Difficulty, name: string): string {
-  const labels: Record<Difficulty, string> = { easy: 'Easy / familiar', mixed: 'Mixed', hard: 'Hard / abstract' };
+  const labels: Record<Difficulty, string> = { easy: 'Easy or familiar', mixed: 'Mixed', hard: 'Hard or abstract' };
   return (Object.keys(labels) as Difficulty[]).map((value) => `
     <label class="difficulty-pill">
       <input type="radio" name="${name}" value="${value}" ${selected === value ? 'checked' : ''} />
@@ -90,101 +154,115 @@ function difficultyOptions(selected: Difficulty, name: string): string {
 }
 
 function renderPlanner(): void {
-  document.title = 'Time Budget New Cards — Fit new cards into today';
+  document.title = isDemo ? 'Demo — Time Budget New Cards' : 'Time Budget New Cards — Plan a daily card limit';
   root.innerHTML = `
-    <header class="site-header">
-      <a class="brand" href="#top" aria-label="Time Budget New Cards home"><span class="brand-mark" aria-hidden="true">● ◼ ●</span><span>Study Tape</span></a>
-      <nav aria-label="Page"><a href="#method">Method</a><a href="#history">History</a></nav>
-      <span class="connection" id="connection"><span aria-hidden="true">●</span> <span>${connectionLabel()}</span></span>
-    </header>
+    ${siteHeader(true)}
+    ${demoBanner()}
     <main id="main">
       <section class="hero" id="top" aria-labelledby="page-title">
         <div class="hero-copy">
-          <p class="kicker">Your minutes are the limit. Not an arbitrary count.</p>
-          <h1 id="page-title">Make new cards fit today’s tape.</h1>
-          <p class="lede">Set today’s study budget, account for due reviews, and get a cautious new-card cap that learns from your actual sessions.</p>
-          <a class="button primary" href="#planner">Plan today’s stack <span aria-hidden="true">↓</span></a>
-          <ul class="trust-strip" aria-label="Product qualities"><li>No account</li><li>Works offline</li><li>Your data stays local</li></ul>
+          <p class="kicker">Plan by minutes, not card count</p>
+          <h1 id="page-title" tabindex="-1">Choose how many new cards fit today</h1>
+          <p class="lede">For Anki and CSV flashcard learners who need a safe new-card limit within today’s study time.</p>
+          <div class="hero-actions">
+            ${isDemo
+              ? '<a class="button primary" href="#planner">View the sample result</a>'
+              : '<a class="button primary" href="/demo/#planner">Try it with sample data</a><a class="text-link real-start" href="#planner">Plan with my data</a>'}
+          </div>
+          <p class="action-note">${isDemo ? 'Three sample sessions are loaded below.' : 'Loads three sample sessions and a result.'}</p>
+          <ul class="trust-strip" aria-label="Product facts"><li>Study data stays here</li><li>Works offline after one visit</li><li>Free to use</li></ul>
         </div>
         <figure class="hero-art">
           <picture>
             <source srcset="/art/study-tape.avif" type="image/avif" />
             <source srcset="/art/study-tape.webp" type="image/webp" />
-            <img src="/art/study-tape.png" width="768" height="512" fetchpriority="high" decoding="async" alt="A collage-style cassette recorder with blank study cards feeding into it like a timed mixtape." />
+            <img src="/art/study-tape.png" width="768" height="512" fetchpriority="high" decoding="async" alt="A collage of a study timer and blank flashcards on a desk." />
           </picture>
-          <figcaption>One tape. A finite side. Choose the tracks that fit.</figcaption>
+          <figcaption>Reviews use part of the budget. New cards use what remains.</figcaption>
         </figure>
       </section>
 
       <section class="planner-section" id="planner" aria-labelledby="planner-title">
         <div class="section-heading">
-          <p class="kicker">Side A / Today</p><h2 id="planner-title">Set the time, then press play.</h2>
+          <p class="kicker">Plan today’s session</p><h2 id="planner-title">Enter your time and due reviews</h2>
         </div>
         <div class="planner-grid">
-          <form id="settings-form" class="settings-panel">
+          <form id="settings-form" class="settings-panel" novalidate>
             <fieldset><legend><span>01</span> Time budget</legend>
               <label for="budget">Minutes available today</label>
-              <div class="input-with-unit"><input id="budget" name="budgetMinutes" type="number" inputmode="decimal" min="1" max="360" step="1" value="${state.settings.budgetMinutes}" required /><span>min</span></div>
+              <div class="input-with-unit"><input id="budget" name="budgetMinutes" type="number" inputmode="decimal" min="1" max="360" step="1" value="${state.settings.budgetMinutes}" required aria-describedby="budget-error" /><span>min</span></div>
+              <p class="field-error" id="budget-error" aria-live="polite"></p>
             </fieldset>
             <fieldset><legend><span>02</span> Reviews already due</legend>
               <div class="split-fields">
-                <div><label for="due">Due cards</label><input id="due" name="dueReviews" type="number" inputmode="numeric" min="0" max="9999" step="1" value="${state.settings.dueReviews}" required /></div>
-                <div><label for="review-seconds">Average review</label><div class="input-with-unit"><input id="review-seconds" name="reviewSeconds" type="number" inputmode="decimal" min="1" max="300" step="0.5" value="${state.settings.reviewSeconds}" required /><span>sec</span></div></div>
+                <div><label for="due">Due cards</label><input id="due" name="dueReviews" type="number" inputmode="numeric" min="0" max="9999" step="1" value="${state.settings.dueReviews}" required aria-describedby="due-error" /><p class="field-error" id="due-error" aria-live="polite"></p></div>
+                <div><label for="review-seconds">Average review</label><div class="input-with-unit"><input id="review-seconds" name="reviewSeconds" type="number" inputmode="decimal" min="1" max="300" step="0.5" value="${state.settings.reviewSeconds}" required aria-describedby="review-note review-seconds-error" /><span>sec</span></div><p class="field-error" id="review-seconds-error" aria-live="polite"></p></div>
               </div>
-              <p class="field-note">Anki: Stats → Answer buttons shows average answer time. Include only active answer time.</p>
+              <p class="field-note" id="review-note">In Anki, open Stats then Answer buttons. Use the average active answer time.</p>
             </fieldset>
             <fieldset><legend><span>03</span> New material</legend>
-              <span class="label-like" id="difficulty-label">How will today’s cards feel?</span>
+              <span class="label-like" id="difficulty-label">How difficult are today’s cards?</span>
               <div class="difficulty-group" role="radiogroup" aria-labelledby="difficulty-label">${difficultyOptions(state.settings.difficulty, 'difficulty')}</div>
-              <label class="override-label" for="new-card-seconds">Override today’s pace <span>(optional)</span></label>
-              <div class="input-with-unit"><input id="new-card-seconds" name="newCardSeconds" type="number" inputmode="decimal" min="8" max="600" step="1" value="${state.settings.newCardSeconds ?? ''}" /><span>sec</span></div>
-              <p class="field-note">Use this when today’s deck is unusually different. Clear it to return to the learned estimate.</p>
+              <label class="override-label" for="new-card-seconds">Set today’s new-card pace <span>(optional)</span></label>
+              <div class="input-with-unit"><input id="new-card-seconds" name="newCardSeconds" type="number" inputmode="decimal" min="8" max="600" step="1" value="${state.settings.newCardSeconds ?? ''}" aria-describedby="new-card-note new-card-seconds-error" /><span>sec</span></div>
+              <p class="field-error" id="new-card-seconds-error" aria-live="polite"></p>
+              <p class="field-note" id="new-card-note">Use this for an unusual deck. Clear it to use the estimate from your history.</p>
             </fieldset>
           </form>
           <aside class="result-panel" aria-labelledby="result-title" aria-live="polite">
+            <p id="result-warning" class="result-warning" role="status" hidden></p>
             <div id="recommendation"></div>
-            <a class="button inverted" href="#log-session">Log the session later</a>
+            <a class="button inverted" href="#log-session">Record the session later</a>
           </aside>
         </div>
-        <p id="app-message" class="app-message" role="status" aria-live="polite">Saved on this device.</p>
+        <p id="app-message" class="app-message" role="status" aria-live="polite">${isDemo ? 'Sample data is active. Nothing is saved.' : 'Changes save in this browser.'}</p>
       </section>
 
       <section class="log-section" id="log-session" aria-labelledby="log-title">
-        <div class="section-heading"><p class="kicker">Side B / Reality check</p><h2 id="log-title">Teach the estimate your pace.</h2><p>After a session, record what happened. Two or more logs replace the starter assumptions with your own evidence.</p></div>
-        <form id="log-form" class="log-form">
-          <div><label for="log-date">Date</label><input id="log-date" name="date" type="date" value="${today()}" required /></div>
-          <div><label for="log-minutes">Total minutes</label><input id="log-minutes" name="totalMinutes" type="number" min="0.1" max="600" step="0.1" required /></div>
-          <div><label for="log-reviews">Reviews completed</label><input id="log-reviews" name="reviewedCards" type="number" min="0" max="9999" step="1" value="${state.settings.dueReviews}" required /></div>
-          <div><label for="log-new">New cards completed</label><input id="log-new" name="newCards" type="number" min="0" max="9999" step="1" value="${estimate(state.settings, state.sessions).cap}" required /></div>
+        <div class="section-heading"><p class="kicker">Improve the estimate</p><h2 id="log-title">Record what happened</h2><p>After a session, record the minutes and cards. Two useful logs replace the starter estimate with your evidence.</p></div>
+        <form id="log-form" class="log-form" novalidate>
+          <div><label for="log-date">Date</label><input id="log-date" name="date" type="date" value="${today()}" required aria-describedby="log-date-error" /><p class="field-error" id="log-date-error" aria-live="polite"></p></div>
+          <div><label for="log-minutes">Total minutes</label><input id="log-minutes" name="totalMinutes" type="number" min="0.1" max="600" step="0.1" required aria-describedby="log-minutes-error" /><p class="field-error" id="log-minutes-error" aria-live="polite"></p></div>
+          <div><label for="log-reviews">Reviews completed</label><input id="log-reviews" name="reviewedCards" type="number" min="0" max="9999" step="1" value="${state.settings.dueReviews}" required aria-describedby="log-reviews-error" /><p class="field-error" id="log-reviews-error" aria-live="polite"></p></div>
+          <div><label for="log-new">New cards completed</label><input id="log-new" name="newCards" type="number" min="0" max="9999" step="1" value="${estimate(state.settings, state.sessions).cap}" required aria-describedby="log-new-error" /><p class="field-error" id="log-new-error" aria-live="polite"></p></div>
           <fieldset class="log-difficulty"><legend>Difficulty</legend><div class="difficulty-group">${difficultyOptions(state.settings.difficulty, 'logDifficulty')}</div></fieldset>
           <button class="button primary" type="submit">Add session</button>
         </form>
       </section>
 
       <section class="history-section" id="history" aria-labelledby="history-title">
-        <div class="section-heading with-actions"><div><p class="kicker">Liner notes / Local history</p><h2 id="history-title">Your recent sessions</h2></div><div class="utility-actions"><button class="button small" id="export-csv" type="button">Export CSV</button><button class="button small" id="export-json" type="button">Back up JSON</button></div></div>
+        <div class="section-heading with-actions"><div><p class="kicker">Stored in this browser</p><h2 id="history-title">Your recent sessions</h2></div><div class="utility-actions"><button class="button small" id="export-csv" type="button">Export CSV</button><button class="button small" id="export-json" type="button">Back up JSON</button></div></div>
         <div id="history-content"></div>
         <div class="import-panel">
-          <div><h3>Bring in existing evidence</h3><p>Import this app’s CSV, or Anki-style review rows. Nothing uploads.</p></div>
-          <div class="import-actions"><a class="text-link" id="template-link" download="study-tape-template.csv">Download template</a><label class="button small file-button">Import CSV or JSON<input id="import-file" type="file" accept=".csv,.json,text/csv,application/json" /></label></div>
+          <div><h3>Import session history</h3><p>Use this app’s CSV or Anki-style review rows. The file stays in this browser.</p></div>
+          <div class="import-actions"><a class="text-link touch-link" id="template-link" download="time-budget-template.csv">Download CSV template</a><label class="button small file-button">Import CSV or JSON<input id="import-file" type="file" accept=".csv,.json,text/csv,application/json" /></label></div>
         </div>
         <p id="import-message" class="app-message" role="status" aria-live="polite"></p>
-        <button class="danger-link" id="erase-data" type="button">Erase local data…</button>
+        ${isDemo ? '' : '<button class="danger-link" id="erase-data" type="button">Erase local data…</button>'}
       </section>
 
       <section class="method-section" id="method" aria-labelledby="method-title">
-        <div><p class="kicker">Under the hood</p><h2 id="method-title">A cautious estimate, shown honestly.</h2></div>
+        <div><p class="kicker">How it works</p><h2 id="method-title">How the recommendation is calculated</h2></div>
         <ol class="method-list">
-          <li><span>1</span><div><h3>Reserve review time</h3><p>Due reviews × your average seconds per review are removed from today’s budget first.</p></div></li>
-          <li><span>2</span><div><h3>Estimate marginal time</h3><p>Session logs isolate the minutes left after reviews and estimate time per new card, adjusted for difficulty.</p></div></li>
-          <li><span>3</span><div><h3>Use the cautious edge</h3><p>The recommendation divides remaining time by the slower edge of the estimate. The wider range stays visible.</p></div></li>
+          <li><span>1</span><div><h3>Reserve review time</h3><p>Due reviews multiply by your average seconds per review. That time leaves today’s budget first.</p></div></li>
+          <li><span>2</span><div><h3>Estimate new-card time</h3><p>Session logs show the time left after reviews. The estimate adjusts that time for difficulty.</p></div></li>
+          <li><span>3</span><div><h3>Use the cautious end</h3><p>The recommendation uses the slower estimate. It keeps the wider likely range visible.</p></div></li>
         </ol>
-        <p class="method-note"><strong>Not a learning prescription.</strong> This plans session time; it does not change Anki or FSRS, guarantee recall, or assess cognitive health. Interruptions and unfamiliar material can move the result—correct it with your logs.</p>
+        <p class="method-note">This estimate uses the inputs and session history you provide. Interruptions and unfamiliar material can change the result.</p>
+      </section>
+
+      <section class="limits-section" id="limits" aria-labelledby="limits-title">
+        <div><p class="kicker">Privacy and limits</p><h2 id="limits-title">What this planner does not do</h2></div>
+        <ul class="limits-list">
+          <li><strong>It does not connect to or change Anki or FSRS.</strong> You choose what to enter or import.</li>
+          <li><strong>It does not promise recall or assess health.</strong> Use the result only to plan session time.</li>
+          <li><strong>It does not send entered study data off this site.</strong> Read the <a href="/privacy/">privacy policy</a> for storage details.</li>
+        </ul>
       </section>
     </main>
-    <footer class="site-footer"><div><strong>Study Tape</strong><p>A free, local-first companion for Anki and CSV flashcard learners.</p></div><nav aria-label="Legal"><a href="/privacy/">Privacy</a><a href="/terms/">Terms</a><a href="https://github.com/B-Divyesh/sf-time-budget-new-cards">Source</a></nav><p class="generated-note">Hero artwork generated for this product with Azure AI; no stock assets.</p></footer>
-    <dialog id="erase-dialog" aria-labelledby="erase-title"><form method="dialog"><h2 id="erase-title">Erase every local session?</h2><p>This removes settings and history from this browser. Export a backup first if you may want it later.</p><div class="dialog-actions"><button class="button small" value="cancel">Keep my data</button><button class="button danger" id="confirm-erase" value="erase">Erase permanently</button></div></form></dialog>
-    <div id="update-toast" class="update-toast" hidden><span>A fresh cut is available.</span><button type="button">Update app</button></div>`;
+    ${siteFooter()}
+    ${isDemo ? '' : '<dialog id="erase-dialog" aria-labelledby="erase-title"><form method="dialog"><h2 id="erase-title">Erase your local planner data?</h2><p>This deletes settings and history from this browser. Export a backup first if you may need it.</p><div class="dialog-actions"><button class="button small" value="cancel">Keep my data</button><button class="button danger" id="confirm-erase" value="erase">Erase local data</button></div></form></dialog>'}
+    <div id="update-toast" class="update-toast" role="status" aria-live="polite" hidden><span>An app update is ready.</span><button type="button">Update app</button></div>`;
 
   renderRecommendation();
   renderHistory();
@@ -195,16 +273,16 @@ function renderRecommendation(): void {
   const target = document.querySelector<HTMLElement>('#recommendation');
   if (!target) return;
   const result = estimate(state.settings, state.sessions);
-  const confidenceLabel = { starter: 'Starter estimate', learning: 'Learning your pace', personal: 'Personal estimate', manual: 'Manual correction' }[result.confidence];
+  const confidenceLabel = { starter: 'Starter estimate', learning: 'Learning from your history', personal: 'Personal estimate', manual: 'Manual correction' }[result.confidence];
   const fill = Math.min(100, (result.expectedMinutes / state.settings.budgetMinutes) * 100);
   target.innerHTML = `
-    <p class="result-label" id="result-title">Today’s safe cap</p>
+    <p class="result-label" id="result-title">Today’s safe new-card limit</p>
     <div class="cap-line"><strong>${result.cap}</strong><span>new<br />cards</span></div>
-    <p class="range">Likely fit: <strong>${result.rangeLow}–${result.rangeHigh}</strong> cards <span class="confidence">${confidenceLabel}</span></p>
+    <p class="range">Likely range: <strong>${result.rangeLow}–${result.rangeHigh}</strong> cards <span class="confidence">${confidenceLabel}</span></p>
     <div class="tape-meter" role="img" aria-label="Expected session ${result.expectedMinutes.toFixed(1)} of ${state.settings.budgetMinutes} minutes"><span style="width:${fill}%"></span></div>
-    <div class="time-readout"><span>Expected</span><strong>${result.expectedMinutes.toFixed(1)} / ${state.settings.budgetMinutes} min</strong></div>
+    <div class="time-readout"><span>Expected time</span><strong>${result.expectedMinutes.toFixed(1)} / ${state.settings.budgetMinutes} min</strong></div>
     <p class="result-reason">${result.reason}</p>
-    <details class="estimate-details"><summary>See uncertainty</summary><p>New cards are estimated at ${Math.round(result.secondsPerNew)} seconds each, with ±${Math.round(result.uncertaintySeconds)} seconds of observed or starter variation. Based on ${result.sampleCount} usable ${result.sampleCount === 1 ? 'session' : 'sessions'}; logs with implausible marginal times are ignored.</p></details>`;
+    <details class="estimate-details"><summary>Check the assumptions</summary><p>Each new card is estimated at ${Math.round(result.secondsPerNew)} seconds, with ±${Math.round(result.uncertaintySeconds)} seconds of variation.</p><p>The estimate uses ${result.sampleCount} useful ${result.sampleCount === 1 ? 'session' : 'sessions'}. Logs with unlikely new-card times are ignored.</p></details>`;
   const logNew = document.querySelector<HTMLInputElement>('#log-new');
   if (logNew && document.activeElement !== logNew) logNew.value = String(result.cap);
 }
@@ -213,17 +291,17 @@ function renderHistory(): void {
   const target = document.querySelector<HTMLElement>('#history-content');
   if (!target) return;
   if (!state.sessions.length) {
-    target.innerHTML = `<div class="empty-state"><span class="empty-reels" aria-hidden="true">◉ ─ ◉</span><h3>No sessions on this tape yet.</h3><p>Use today’s starter estimate, then log the real session. Your second log unlocks a more grounded range.</p><a class="text-link" href="#log-session">Log my first session →</a></div>`;
+    target.innerHTML = `<div class="empty-state"><span class="empty-reels" aria-hidden="true">◉ ─ ◉</span><h3>No sessions recorded yet</h3><p>Use the starter estimate, then record the real session. After two useful logs, the estimate uses your history.</p><a class="text-link touch-link" href="#log-session">Record the first session</a></div>`;
     return;
   }
   const sessions = [...state.sessions].sort((a, b) => b.createdAt - a.createdAt).slice(0, 30);
-  target.innerHTML = `<div class="table-wrap"><table><caption class="sr-only">Up to 30 most recent study sessions</caption><thead><tr><th>Date</th><th>Minutes</th><th>Reviews</th><th>New</th><th>Load</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody>${sessions.map((session) => `<tr><td>${session.date}</td><td>${session.totalMinutes}</td><td>${session.reviewedCards}</td><td>${session.newCards}</td><td>${session.difficulty}</td><td><button class="row-delete" data-delete="${session.id}" type="button" aria-label="Delete session from ${session.date}">Delete</button></td></tr>`).join('')}</tbody></table></div>`;
+  target.innerHTML = `<div class="table-wrap"><table><caption class="sr-only">Recent study sessions</caption><thead><tr><th>Date</th><th>Minutes</th><th>Reviews</th><th>New</th><th>Difficulty</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody>${sessions.map((session) => `<tr><td>${session.date}</td><td>${session.totalMinutes}</td><td>${session.reviewedCards}</td><td>${session.newCards}</td><td>${session.difficulty}</td><td><button class="row-delete" data-delete="${session.id}" type="button" aria-label="Delete session from ${session.date}">Delete</button></td></tr>`).join('')}</tbody></table></div>`;
 }
 
 function normalizedImportedState(value: unknown): PlannerState {
-  if (!value || typeof value !== 'object') throw new Error('This is not a Study Tape JSON backup.');
+  if (!value || typeof value !== 'object') throw new Error('This is not a Time Budget New Cards JSON backup.');
   const candidate = value as Partial<PlannerState>;
-  if (candidate.version !== 1 || !candidate.settings || !Array.isArray(candidate.sessions)) throw new Error('This is not a Study Tape JSON backup.');
+  if (candidate.version !== 1 || !candidate.settings || !Array.isArray(candidate.sessions)) throw new Error('This is not a Time Budget New Cards JSON backup.');
   const difficulty = candidate.settings.difficulty;
   if (!['easy', 'mixed', 'hard'].includes(difficulty)) throw new Error('The backup has an unknown difficulty value.');
   const bounded = (input: unknown, min: number, max: number, label: string): number => {
@@ -272,10 +350,71 @@ function download(name: string, content: string, type: string): void {
   URL.revokeObjectURL(url);
 }
 
+const plannerRanges: Record<string, { label: string; min: string; max: string }> = {
+  budget: { label: 'Minutes available today', min: '1', max: '360' },
+  due: { label: 'Due cards', min: '0', max: '9,999' },
+  'review-seconds': { label: 'Average review', min: '1', max: '300' },
+  'new-card-seconds': { label: 'New-card pace', min: '8', max: '600' },
+};
+
+const logRanges: Record<string, { empty: string; range?: string }> = {
+  'log-date': { empty: 'Choose a session date.' },
+  'log-minutes': { empty: 'Enter the total session minutes.', range: 'Total minutes must be between 0.1 and 600.' },
+  'log-reviews': { empty: 'Enter the completed review count.', range: 'Reviews completed must be between 0 and 9,999.' },
+  'log-new': { empty: 'Enter the completed new-card count.', range: 'New cards completed must be between 0 and 9,999.' },
+};
+
+function validatePlanner(form: HTMLFormElement): boolean {
+  let valid = true;
+  Object.entries(plannerRanges).forEach(([id, range]) => {
+    const input = form.querySelector<HTMLInputElement>(`#${id}`);
+    const error = document.querySelector<HTMLElement>(`#${id}-error`);
+    if (!input || !error) return;
+    const optionalEmpty = !input.required && input.value.trim() === '';
+    if (!optionalEmpty && !input.validity.valid) {
+      valid = false;
+      input.setAttribute('aria-invalid', 'true');
+      error.textContent = `${range.label} must be between ${range.min} and ${range.max}. The result still uses your last valid value.`;
+    } else {
+      input.removeAttribute('aria-invalid');
+      error.textContent = '';
+    }
+  });
+  const warning = document.querySelector<HTMLElement>('#result-warning');
+  if (warning) {
+    warning.hidden = valid;
+    warning.textContent = valid ? '' : 'Result not updated. Fix the highlighted value.';
+  }
+  return valid;
+}
+
+function validateLog(form: HTMLFormElement, focusFirst = false): boolean {
+  let firstInvalid: HTMLInputElement | undefined;
+  Object.entries(logRanges).forEach(([id, messages]) => {
+    const input = form.querySelector<HTMLInputElement>(`#${id}`);
+    const error = document.querySelector<HTMLElement>(`#${id}-error`);
+    if (!input || !error) return;
+    const invalid = !input.validity.valid;
+    if (invalid && !firstInvalid) firstInvalid = input;
+    if (invalid) {
+      input.setAttribute('aria-invalid', 'true');
+      error.textContent = input.validity.valueMissing ? messages.empty : messages.range || messages.empty;
+    } else {
+      input.removeAttribute('aria-invalid');
+      error.textContent = '';
+    }
+  });
+  if (focusFirst) firstInvalid?.focus();
+  return !firstInvalid;
+}
+
 function bindPlanner(): void {
   document.querySelector<HTMLFormElement>('#settings-form')?.addEventListener('input', (event) => {
     const form = event.currentTarget as HTMLFormElement;
-    if (!form.checkValidity()) return;
+    if (!validatePlanner(form)) {
+      setMessage('A planner value is invalid. The result still uses your last valid settings.', 'error');
+      return;
+    }
     const data = new FormData(form);
     const newCardSeconds = String(data.get('newCardSeconds') || '').trim();
     state.settings = {
@@ -289,9 +428,17 @@ function bindPlanner(): void {
     queueSave();
   });
 
+  document.querySelector<HTMLFormElement>('#log-form')?.addEventListener('input', (event) => {
+    validateLog(event.currentTarget as HTMLFormElement);
+  });
+
   document.querySelector<HTMLFormElement>('#log-form')?.addEventListener('submit', async (event) => {
     event.preventDefault();
     const form = event.currentTarget as HTMLFormElement;
+    if (!validateLog(form, true)) {
+      setMessage('Session not added. Fix the highlighted value.', 'error');
+      return;
+    }
     const data = new FormData(form);
     const session: StudySession = {
       id: crypto.randomUUID(),
@@ -305,7 +452,7 @@ function bindPlanner(): void {
     state.sessions.unshift(session);
     window.clearTimeout(saveTimer);
     try {
-      await saveState(state);
+      await persistState();
     } catch {
       setMessage('Session added for now, but local storage failed. Export a backup.', 'error');
     }
@@ -314,7 +461,7 @@ function bindPlanner(): void {
     form.reset();
     const dateInput = form.elements.namedItem('date') as HTMLInputElement;
     dateInput.value = today();
-    setMessage('Session added. Today’s estimate now includes it.');
+    setMessage(isDemo ? 'Sample session added for this tab. Nothing was saved.' : 'Session added. The estimate now includes it.');
     document.querySelector('#history-title')?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
   });
 
@@ -323,17 +470,17 @@ function bindPlanner(): void {
     if (!button) return;
     const session = state.sessions.find((candidate) => candidate.id === button.dataset.delete);
     if (!session || !window.confirm(`Delete the ${session.date} session? This cannot be undone.`)) return;
-    state.sessions = state.sessions.filter((session) => session.id !== button.dataset.delete);
+    state.sessions = state.sessions.filter((candidate) => candidate.id !== button.dataset.delete);
     renderHistory();
     renderRecommendation();
     queueSave();
-    setMessage('Session removed.');
+    setMessage(isDemo ? 'Sample session removed for this tab.' : 'Session removed.');
   });
 
-  document.querySelector('#export-csv')?.addEventListener('click', () => download(`study-tape-${today()}.csv`, exportSessions(state.sessions), 'text/csv'));
-  document.querySelector('#export-json')?.addEventListener('click', () => download(`study-tape-backup-${today()}.json`, JSON.stringify(state, null, 2), 'application/json'));
+  document.querySelector('#export-csv')?.addEventListener('click', () => download(`time-budget-${today()}.csv`, exportSessions(state.sessions), 'text/csv'));
+  document.querySelector('#export-json')?.addEventListener('click', () => download(`time-budget-backup-${today()}.json`, JSON.stringify(state, null, 2), 'application/json'));
   const template = document.querySelector<HTMLAnchorElement>('#template-link');
-  if (template) template.href = `data:text/csv;charset=utf-8,${encodeURIComponent('date,total_minutes,reviewed_cards,new_cards,difficulty\n2026-08-27,20,45,8,mixed')}`;
+  if (template) template.href = `data:text/csv;charset=utf-8,${encodeURIComponent('date,total_minutes,reviewed_cards,new_cards,difficulty\n2026-09-05,23,50,8,easy')}`;
 
   document.querySelector<HTMLInputElement>('#import-file')?.addEventListener('change', async (event) => {
     const input = event.currentTarget as HTMLInputElement;
@@ -342,35 +489,59 @@ function bindPlanner(): void {
     try {
       const text = await file.text();
       if (file.name.toLowerCase().endsWith('.json')) {
-        state = normalizedImportedState(JSON.parse(text) as unknown);
+        let parsed: unknown;
+        try {
+          parsed = JSON.parse(text) as unknown;
+        } catch {
+          throw new Error('This JSON file could not be read. Export it again and retry.');
+        }
+        state = normalizedImportedState(parsed);
       } else {
         const imported = importSessions(text);
         const ids = new Set(state.sessions.map((session) => `${session.date}|${session.totalMinutes}|${session.reviewedCards}|${session.newCards}`));
         state.sessions = [...imported.filter((session) => !ids.has(`${session.date}|${session.totalMinutes}|${session.reviewedCards}|${session.newCards}`)), ...state.sessions];
       }
-      await saveState(state);
+      await persistState();
       renderPlanner();
-      setImportMessage(`Import complete. History now has ${state.sessions.length} sessions.`);
+      setImportMessage(`Import complete. History now has ${state.sessions.length} ${state.sessions.length === 1 ? 'session' : 'sessions'}.`);
     } catch (error) {
       setImportMessage(error instanceof Error ? error.message : 'The file could not be imported.', 'error');
       input.value = '';
     }
   });
 
-  const dialog = document.querySelector<HTMLDialogElement>('#erase-dialog');
-  document.querySelector('#erase-data')?.addEventListener('click', () => dialog?.showModal());
-  document.querySelector('#confirm-erase')?.addEventListener('click', async () => {
-    state = structuredClone(defaultState);
-    await saveState(state);
+  document.querySelector('#reset-demo')?.addEventListener('click', () => {
+    state = structuredClone(sampleState);
     renderPlanner();
-    setMessage('Local data erased. The starter estimate is restored.');
+    document.querySelector('#planner')?.scrollIntoView();
+    setMessage('Demo reset to the three sample sessions.');
+  });
+
+  const dialog = document.querySelector<HTMLDialogElement>('#erase-dialog');
+  document.querySelector('#erase-data')?.addEventListener('click', () => {
+    dialog?.showModal();
+    window.setTimeout(() => dialog?.querySelector<HTMLButtonElement>('[value="cancel"]')?.focus());
+  });
+  document.querySelector('#confirm-erase')?.addEventListener('click', async (event) => {
+    event.preventDefault();
+    window.clearTimeout(saveTimer);
+    try {
+      await deleteState();
+      state = structuredClone(defaultState);
+      dialog?.close('erase');
+      renderPlanner();
+      setMessage('Local settings and study history were erased.');
+    } catch (error) {
+      dialog?.close('cancel');
+      setMessage(error instanceof Error ? error.message : 'Local data could not be erased. Try again.', 'error');
+    }
   });
 }
 
 function monitorConnection(): void {
   const update = (online = navigator.onLine): void => {
-    if (online) sessionStorage.removeItem('study-tape-offline');
-    else sessionStorage.setItem('study-tape-offline', 'true');
+    if (online) sessionStorage.removeItem('time-budget-offline');
+    else sessionStorage.setItem('time-budget-offline', 'true');
     const element = document.querySelector<HTMLElement>('#connection');
     if (element) element.innerHTML = `<span aria-hidden="true">●</span> <span>${connectionLabel()}</span>`;
   };
@@ -381,7 +552,7 @@ function monitorConnection(): void {
     return;
   }
   fetch(`/online-check.txt?${Date.now()}`, { cache: 'no-store' })
-    .then((response) => update(response.ok && response.headers.get('X-Study-Tape-Offline') !== '1'))
+    .then((response) => update(response.ok && response.headers.get('X-Time-Budget-Offline') !== '1'))
     .catch(() => update(false));
 }
 
@@ -415,19 +586,27 @@ function showUpdate(registration: ServiceWorkerRegistration): void {
 }
 
 async function start(): Promise<void> {
-  const path = location.pathname.replace(/\/$/, '');
-  if (path === '/privacy' || path === '/terms') {
-    legalPage(path.slice(1) as 'privacy' | 'terms');
-  } else {
-    root.innerHTML = `<main id="main" class="loading"><p class="kicker">Rewinding your local tape…</p><h1>Loading your study budget.</h1></main>`;
-    try {
-      state = (await loadState()) || structuredClone(defaultState);
-      renderPlanner();
-    } catch {
-      renderPlanner();
-      setMessage('Local storage is unavailable. The calculator works, but changes may not survive a refresh.', 'error');
+  const path = normalizedPath;
+  if (path === '/privacy' || path === '/privacy/index.html' || path === '/terms' || path === '/terms/index.html') {
+    legalPage(path.includes('privacy') ? 'privacy' : 'terms');
+  } else if (path === '' || path === '/index.html' || isDemo) {
+    root.innerHTML = `<main id="main" class="loading"><p>Loading your study budget…</p><h1>Choose how many new cards fit today</h1></main>`;
+    if (!isDemo) {
+      try {
+        state = (await loadState()) || structuredClone(defaultState);
+      } catch {
+        renderPlanner();
+        setMessage('Local storage is unavailable. The calculator works, but changes may not survive a refresh.', 'error');
+        monitorConnection();
+        registerServiceWorker().catch(() => undefined);
+        return;
+      }
     }
+    renderPlanner();
     monitorConnection();
+    if (isDemo && location.hash === '#planner') requestAnimationFrame(() => document.querySelector('#planner')?.scrollIntoView());
+  } else {
+    notFoundPage();
   }
   registerServiceWorker().catch(() => undefined);
 }

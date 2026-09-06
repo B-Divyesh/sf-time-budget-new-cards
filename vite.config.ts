@@ -13,15 +13,20 @@ const staticPrecache = [
   '/privacy/index.html',
   '/terms/',
   '/terms/index.html',
+  '/demo/',
+  '/demo/index.html',
+  '/404.html',
   '/offline.html',
   '/manifest.webmanifest',
   '/icons/icon.svg',
   '/icons/icon-192.png',
   '/icons/icon-512.png',
   '/icons/icon-maskable-512.png',
+  '/icons/apple-touch-icon.png',
   '/art/study-tape.webp',
   '/art/study-tape.avif',
   '/art/study-tape.png',
+  '/art/time-budget-social.png',
 ];
 
 function serviceWorkerPrecache(): Plugin {
@@ -38,6 +43,7 @@ function serviceWorkerPrecache(): Plugin {
         if (path === '/' || path === '/index.html') return resolve(outputDirectory, 'index.html');
         if (path === '/privacy/' || path === '/privacy/index.html') return resolve(outputDirectory, 'privacy/index.html');
         if (path === '/terms/' || path === '/terms/index.html') return resolve(outputDirectory, 'terms/index.html');
+        if (path === '/demo/' || path === '/demo/index.html') return resolve(outputDirectory, 'demo/index.html');
         return resolve(outputDirectory, path.slice(1));
       };
       const revision = createHash('sha256')
@@ -65,6 +71,8 @@ export default defineConfig({
         main: resolve(projectRoot, 'index.html'),
         privacy: resolve(projectRoot, 'privacy/index.html'),
         terms: resolve(projectRoot, 'terms/index.html'),
+        demo: resolve(projectRoot, 'demo/index.html'),
+        notFound: resolve(projectRoot, '404.html'),
       },
     },
   },

@@ -1,70 +1,99 @@
 # Time Budget New Cards
 
-Time Budget New Cards (“Study Tape”) is a free, offline-first companion for Anki and CSV flashcard learners. It answers a practical question before a session begins: **how many new cards can I safely introduce inside the minutes I have today?**
+Choose how many new flashcards fit a fixed daily study time. The planner is for Anki and CSV flashcard learners with mixed card difficulty.
 
-Live: <https://time-budget-new-cards.sociobot.in>
+Live product: <https://time-budget-new-cards.sociobot.in/>
+
+One-click sample: <https://time-budget-new-cards.sociobot.in/demo/>
 
 ## What it does
 
-- Reserves time for already-due reviews.
-- Estimates marginal time per new card, adjusted for easy, mixed, or hard material.
-- Shows a cautious cap, a likely range, and the assumptions behind both.
-- Learns from session history you log or import from CSV/Anki-style review rows.
-- Stores everything locally in IndexedDB; no account, tracking, or network service is used.
-- Exports session CSV and a full JSON backup.
-- Installs as a PWA and continues working offline.
+- Reserves time for due reviews before allowing new cards.
+- Lowers the new-card limit when cards are harder.
+- Shows a cautious limit, likely range, expected time, and assumptions.
+- Uses useful session history instead of starter assumptions after two logs.
+- Imports the documented session CSV and supported Anki-style review rows.
+- Exports one CSV row per session and a complete JSON backup.
+- Restores settings and session history from that JSON backup.
+- Keeps real settings and sessions after reload in the same browser.
 
-This is a time-planning estimate, not a learning or medical prescription. It does not change the Anki/FSRS scheduler.
+The planner is free and requires no account. It does not connect to or change Anki or FSRS.
+
+The site provides a standalone PWA manifest and install icons. The complete demo reloads offline after the first visit.
+
+## Try the isolated demo
+
+Open `/demo/` or choose “Try it with sample data” on the home page. It loads three realistic study sessions and a filled recommendation.
+
+The banner remains visible while the demo is active. Demo changes stay in memory, save nothing, and never change real planner data.
+
+Use “Reset demo” to restore the sample. Use “Start for real” to discard demo changes and open your real planner.
 
 ## Run locally
 
-Requires Node.js 20 or newer.
+Node.js 20 or newer is required.
 
 ```bash
 npm ci
 npm run dev
 ```
 
-Open the URL printed by Vite. For a production-like run:
+For a production build:
 
 ```bash
 npm run build
 npm run preview
 ```
 
-The deployment artifact is `dist/`, with `dist/index.html` at its root.
+The static deployment artifact is `dist/`. Deployment is handled by the factory; this repository does not manage DNS or infrastructure.
 
 ## Test
 
 ```bash
+npm ci
+npx playwright install chromium
 npm test
-npx playwright install chromium  # first run only
 npm run build
 npm run test:e2e
 ```
 
-Unit tests cover the time model and both CSV formats. Playwright covers desktop/mobile calculation, local persistence, legal routes, accessibility, and a real offline reload.
+Every public product claim is registered in [`.factory/claims.json`](.factory/claims.json). Run one declared claim with its recorded command, or run all claim tests with:
+
+```bash
+npm run test:claim
+```
 
 ## CSV formats
 
-The session format is the most reliable import:
+The session format is:
 
 ```csv
 date,total_minutes,reviewed_cards,new_cards,difficulty
-2026-08-27,20,45,8,mixed
+2026-09-05,23,50,8,easy
 ```
 
-Difficulty is `easy`, `mixed`, or `hard`. The importer also accepts row-level Anki-style data with:
+Difficulty is `easy`, `mixed`, or `hard`.
+
+Supported Anki-style rows need:
 
 - a date column: `date`, `reviewed_at`, `timestamp`, or millisecond `id`;
-- a duration column: `duration_seconds`, or millisecond `duration_ms`/`time`;
-- a newness column: `is_new`, or Anki `type` (`0` means new).
+- a duration column: `duration_seconds`, or millisecond `duration_ms` or `time`;
+- a newness column: `is_new`, or Anki `type`, where `0` means new.
 
-## Privacy and design
+## Privacy and scope
 
-All entered data stays in the current browser unless the user exports it. See [/privacy](https://time-budget-new-cards.sociobot.in/privacy/) and [/terms](https://time-budget-new-cards.sociobot.in/terms/).
+Entered and imported study data is not sent off the product origin. The app loads no analytics, ads, tracking pixels, third-party scripts, or remote fonts.
 
-The product contract lives in [`.factory/brief.json`](.factory/brief.json), the cassette-zine visual system and generated-art provenance in [`.factory/design.md`](.factory/design.md), and verification notes in [`.factory/handoff.md`](.factory/handoff.md).
+“Erase local data” deletes real settings and study history from IndexedDB. Read the [privacy policy](https://time-budget-new-cards.sociobot.in/privacy/) and [terms](https://time-budget-new-cards.sociobot.in/terms/).
+
+This is a planning estimate, not a learning or medical prescription. It does not promise learning outcomes.
+
+## Product records
+
+- [Researched brief](.factory/brief.json)
+- [Visual system and asset provenance](.factory/design.md)
+- [Demo sandbox](.factory/demo.md)
+- [Current handoff](.factory/handoff.md)
 
 ## License
 

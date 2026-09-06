@@ -67,3 +67,10 @@ No font downloads are required, keeping the offline shell light and private.
 ### Native assets
 
 The cassette app icon and small tape/reel marks are hand-authored SVG using the same palette. They contain only geometric primitives and no third-party marks.
+
+### Social and touch assets
+
+- `public/art/time-budget-social.png` is a 1200×630 center crop of the original generated study-desk artwork. It contains no added text and preserves the documented palette.
+- `public/icons/apple-touch-icon.png` is a 180×180 export of the hand-authored product icon.
+
+The public interface uses direct task language rather than cassette metaphors. The cassette-era material and print treatment remain the visual identity, while headings name the planner action or content.

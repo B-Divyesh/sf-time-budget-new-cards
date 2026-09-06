@@ -1,19 +1,21 @@
 {
   "name": "time-budget-new-cards",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "type": "module",
+  "engines": { "node": ">=20" },
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "npm run build && playwright test"
+    "test:e2e": "npm run build && playwright test --workers=1",
+    "test:claim": "npm run build && playwright test tests/claims.spec.ts --project=desktop"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",
-    "@playwright/test": "^1.55.0",
+    "@playwright/test": "1.58.2",
     "@types/node": "^26.4.0",
     "typescript": "^5.9.2",
     "vite": "^7.1.3",

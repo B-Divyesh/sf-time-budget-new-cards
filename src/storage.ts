@@ -31,3 +31,12 @@ export async function saveState(state: PlannerState): Promise<void> {
     transaction.onerror = () => reject(transaction.error || new Error('Could not save local data.'));
   }).finally(() => db.close());
 }
+
+export async function deleteState(): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    const request = indexedDB.deleteDatabase(DB_NAME);
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error || new Error('Could not erase local data.'));
+    request.onblocked = () => reject(new Error('Close other open planner tabs, then try erasing again.'));
+  });
+}

@@ -29,7 +29,7 @@ self.addEventListener('fetch', (event) => {
   // This intentionally remains uncached so the UI can distinguish a real
   // connection from a successful service-worker response.
   if (url.pathname === '/online-check.txt') {
-    event.respondWith(fetch(event.request).catch(() => new Response('', { headers: { 'X-Study-Tape-Offline': '1' } })));
+    event.respondWith(fetch(event.request).catch(() => new Response('', { headers: { 'X-Time-Budget-Offline': '1' } })));
     return;
   }
 
