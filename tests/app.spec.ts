@@ -119,7 +119,7 @@ test('keyboard users can skip navigation and operate the planner', async ({ page
   }
   expect(reachedSample).toBeTruthy();
   await page.keyboard.press('Enter');
-  await expect(page).toHaveURL(/\/demo\/#planner$/);
+  await expect(page).toHaveURL(/\/demo\/\?sample=1$/);
   const easy = page.locator('#settings-form').getByLabel('Easy or familiar');
   await easy.focus();
   await page.keyboard.press('ArrowRight');

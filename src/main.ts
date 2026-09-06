@@ -167,7 +167,7 @@ function renderPlanner(): void {
           <div class="hero-actions">
             ${isDemo
               ? '<a class="button primary" href="#planner">View the sample result</a>'
-              : '<a class="button primary" href="/demo/#planner">Try it with sample data</a><a class="text-link real-start" href="#planner">Plan with my data</a>'}
+              : '<a class="button primary" href="/demo/?sample=1">Try it with sample data</a><a class="text-link real-start" href="#planner">Plan with my data</a>'}
           </div>
           <p class="action-note">${isDemo ? 'Three sample sessions are loaded below.' : 'Loads three sample sessions and a result.'}</p>
           <ul class="trust-strip" aria-label="Product facts"><li>Study data stays here</li><li>Works offline after one visit</li><li>Free to use</li></ul>
@@ -604,7 +604,9 @@ async function start(): Promise<void> {
     }
     renderPlanner();
     monitorConnection();
-    if (isDemo && location.hash === '#planner') requestAnimationFrame(() => document.querySelector('#planner')?.scrollIntoView());
+    if (isDemo && new URLSearchParams(location.search).get('sample') === '1') {
+      requestAnimationFrame(() => document.querySelector(matchMedia('(max-width: 480px)').matches ? '#result-title' : '#planner')?.scrollIntoView());
+    }
   } else {
     notFoundPage();
   }

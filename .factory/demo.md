@@ -5,7 +5,7 @@
 - Local: `http://127.0.0.1:4173/demo/`
 - Live: `https://time-budget-new-cards.sociobot.in/demo/`
 
-The home-page “Try it with sample data” link opens `/demo/#planner` in one click and moves to the populated recommendation.
+The home-page “Try it with sample data” link opens `/demo/?sample=1` in one click. Phones move to the populated result; larger screens show the filled planner and result together.
 
 ## Sample data
 

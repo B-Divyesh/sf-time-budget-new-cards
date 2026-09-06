@@ -21,7 +21,8 @@ test('@claim:demo-isolation loads realistic sample data without changing real da
   await expect(page.getByRole('cell', { name: '19' })).toBeVisible();
   await page.goto('/');
   await page.getByRole('link', { name: 'Try it with sample data' }).click();
-  await expect(page).toHaveURL(/\/demo\/#planner$/);
+  await expect(page).toHaveURL(/\/demo\/\?sample=1$/);
+  await expect(page.locator('.cap-line strong')).toBeInViewport();
   await expect(page.locator('tbody tr')).toHaveCount(3);
   await page.getByLabel('Minutes available today').fill('31');
   await page.getByLabel('Total minutes').fill('28');
